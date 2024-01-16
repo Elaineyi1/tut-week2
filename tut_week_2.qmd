@@ -1,0 +1,116 @@
+---
+title: "tut week 2"
+author: "Boxuan Yi"
+format: html
+---
+```{r}
+#### Preamble ####
+# Purpose: Read in data about Daily Shelter & Overnight Service Occupancy in Toronto 2023 to
+# make a graph of the average number of shelters used every month.
+# Author: Boxuan Yi
+# Email: boxuan.yi@mail.utoronto.ca
+# Date: 15 January 2024
+# Prerequisites: Know where to get data about the use of shelters in Toronto
+```
+
+```{r}
+install.packages("opendatatoronto")
+install.packages("knitr")
+install.packages("tidyverse")
+install.packages("janitor")
+
+library(knitr)
+library(janitor)
+library(lubridate)
+library(opendatatoronto)
+library(tidyverse)
+library(dplyr)
+```
+
+```{r}
+# Acquire the dataset from opendatatoronto, and only use the 2023 dataset. Save it as "daily_shelters.csv"
+
+daily_shelters <-
+  list_package_resources("21c83b32-d5a8-4106-a54f-010dbe49f6f2") |>
+  filter(name == 
+    "daily-shelter-overnight-service-occupancy-capacity-2023.csv") |>
+  get_resource()
+
+write_csv(
+  x = daily_shelters,
+  file = "daily_shelters.csv"
+)
+
+head(daily_shelters)
+```
+
+```{r}
+# clean the dataset and save it as "cleaned_toronto_shelters.csv"
+toronto_shelters_clean <-
+  clean_names(daily_shelters)
+
+write_csv(
+  x = toronto_shelters_clean,
+  file = "cleaned_toronto_shelters.csv"
+)
+head(toronto_shelters_clean)
+```
+
+```{r}
+# Read the file
+toronto_shelters_clean <-
+  read_csv(
+    "cleaned_toronto_shelters.csv",
+    show_col_types = FALSE
+  )
+```
+
+
+```{r}
+# Create a new column named occupancy_month based on the occupancy_date column. I used the full name of the month and its abbreviated name.
+toronto_shelters_clean <- toronto_shelters_clean |>
+  mutate(occupancy_month = month(
+    occupancy_date,
+    label = TRUE,
+    abbr = TRUE
+  ))
+head(toronto_shelters_clean)
+```
+
+```{r}
+# 1. Unique() gives a vector containing the unique values in the occupancy_month column. Use this to test if the months are correct. 
+# 2. To see if all the corresponding dates start with "2023" 
+
+toronto_shelters_clean$occupancy_month |> unique()
+substr(toronto_shelters_clean$occupancy_date, 1, 4) == "2023"
+```
+
+```{r}
+# Only keep the relevant data. Create a new data frame called number_occupied classified by month, which is the mean of occupied_beds every month. For visualization, use ggplot to draw a 12-column bar plot with x-axis representing month and y-axis representing the average occupancy per night. 
+
+toronto_shelters_clean |>
+  arrange(month(occupancy_date)) |> 
+  drop_na(occupied_beds) |> 
+  summarise(number_occupied = mean(occupied_beds),
+            .by = occupancy_month) |> 
+  ggplot(aes(x = occupancy_month, y = number_occupied)) +
+  geom_bar(stat = "identity", fill = "yellow", color = "black") +
+  labs(title = "Average Occupancy per night every month",
+       x = "Occupancy Month",
+       y = "Number Occupied") 
+```
+```{r}
+# Again, only keep the data with useful information. Create a new data frame called number_occupied_sum classified by month, which is the total number of occupied_beds every month. Use ggplot to draw a 12-column bar plot for visualization. X represents month and Y represents the total number.
+
+toronto_shelters_clean |>
+  arrange(month(occupancy_date)) |> 
+  drop_na(occupied_beds) |> 
+  summarise(number_occupied_sum = sum(occupied_beds),
+            .by = occupancy_month) |> 
+  ggplot(aes(x = occupancy_month, y = number_occupied_sum)) +
+  geom_bar(stat = "identity", fill = "orange", color = "black") +
+  labs(title = "Occupancy night every month",
+       x = "Occupancy Month",
+       y = "Total Number Occupied") 
+```
+
